@@ -1,0 +1,65 @@
+pipeline {
+    agent any
+
+    tools {
+        jdk 'JDK-21'
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo 'Downloading source code from GitHub'
+                git branch: 'main',
+                    url: 'https://github.com/SanikaBharne/newsflow-tomcat-demo.git'
+            }
+        }
+
+        stage('Build and Test') {
+            steps {
+                echo 'Building and testing with Gradle'
+                bat 'gradle clean build'
+            }
+        }
+
+        stage('Package') {
+            steps {
+                echo 'Gradle WAR created'
+                archiveArtifacts artifacts: 'build/libs/*.war',
+                                 fingerprint: true
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                echo 'Deploying Gradle WAR to Tomcat'
+                bat '''
+                copy /Y build\\libs\\newsflow-demo.war ^
+                "C:\\apache-tomcat-11.0.26\\webapps\\newsflow-demo.war"
+                '''
+            }
+        }
+
+        stage('Verify') {
+            steps {
+                echo 'Checking deployed application'
+                bat 'curl.exe --fail http://localhost:8081/newsflow-demo/'
+            }
+        }
+    }
+
+    post {
+        always {
+            junit allowEmptyResults: true,
+                  testResults: 'build/test-results/test/*.xml'
+        }
+
+        success {
+            echo 'GRADLE CI/CD PIPELINE SUCCESSFUL'
+        }
+
+        failure {
+            echo 'GRADLE CI/CD PIPELINE FAILED'
+        }
+    }
+}
